@@ -1,0 +1,46 @@
+plugins {
+    id 'groovy'
+    id 'java-gradle-plugin'
+    id 'maven-publish'
+}
+
+group 'org.ballerina'
+version '0.1'
+
+repositories {
+    mavenLocal()
+}
+
+dependencies {
+    compile     gradleApi()
+    testCompile gradleTestKit()
+    testCompile 'junit:junit:4+'
+}
+
+gradlePlugin {
+    plugins {
+        stdLibBalPlugin {
+            id = 'org.ballerina.plugin'
+            implementationClass = 'org.ballerina.plugin.StdLibBalPlugin'
+            displayName = '<short displayable name for plugin>'
+            description = '<Good human-readable description of what your plugin is about>'
+        }
+    }
+}
+
+
+
+publishing {
+    repositories {
+        maven {
+            name = 'localPluginRepository'
+            url = '../local-plugin-repository'
+        }
+    }
+}
+
+
+
+test {
+    useJUnitPlatform()
+}
