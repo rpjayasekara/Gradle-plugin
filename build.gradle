@@ -2,6 +2,7 @@ plugins {
     id 'groovy'
     id 'java-gradle-plugin'
     id 'maven-publish'
+    id 'com.gradle.plugin-publish' version '0.14.0'
 }
 
 group 'org.ballerina'
@@ -17,17 +18,22 @@ dependencies {
     testCompile 'junit:junit:4+'
 }
 
+pluginBundle {
+    website = 'https://github.com/rpjayasekara/gradle-ballerina'
+    vcsUrl = 'https://github.com/rpjayasekara/gradle-ballerina.git'
+    tags = ['Ballerina', 'STD']
+}
+
 gradlePlugin {
     plugins {
         stdLibBalPlugin {
             id = 'org.ballerina.plugin'
             implementationClass = 'org.ballerina.plugin.StdLibBalPlugin'
-            displayName = '<short displayable name for plugin>'
-            description = '<Good human-readable description of what your plugin is about>'
+            displayName = 'Balerina Standard Library Plugin'
+            description = 'A plugin for ballerina ballerina standard library implementation '
         }
     }
 }
-
 
 
 publishing {
