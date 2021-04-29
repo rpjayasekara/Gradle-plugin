@@ -4,8 +4,9 @@ import org.apache.tools.ant.taskdefs.condition.Os
 import org.gradle.api.InvalidUserDataException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.tasks.bundling.Zip
 
-class StdLibBalPlugin implements Plugin<Project>{
+class StdLibBalPlugin implements Plugin<Project> {
 
     @Override
     void apply(Project project) {
@@ -54,10 +55,12 @@ class StdLibBalPlugin implements Plugin<Project>{
             }
         }
 
-        project.tasks.create("unpackJballerinaTools", Copy.class){
-            project.configurations.jbalTools.resolvedConfiguration.resolvedArtifacts.each { artifact ->
-                from project.zipTree(artifact.getFile())
-                into new File("${project.buildDir}/target/extracted-distributions", "jballerina-tools-zip")
+        project.tasks.register("unpackJballerinaTools"){
+            project.copy{
+                project.configurations.jbalTools.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+                    from project.zipTree(artifact.getFile())
+                    into new File("${project.buildDir}/target/extracted-distributions", "jballerina-tools-zip")
+                }
             }
         }
 
@@ -114,10 +117,6 @@ class StdLibBalPlugin implements Plugin<Project>{
                     testParams = "--skip-tests"
                 }
             }
-        }
-
-        project.tasks.create("test1", Copy.class){
-            println project.rootProject.name
         }
 
         project.tasks.create("ballerinaBuild"){
