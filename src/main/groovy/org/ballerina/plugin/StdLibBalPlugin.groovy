@@ -4,14 +4,21 @@ import org.apache.tools.ant.taskdefs.condition.Os
 import org.gradle.api.InvalidUserDataException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.bundling.Zip
+
+class BallerinaExtension {
+    String module
+    String langVersion
+}
 
 class StdLibBalPlugin implements Plugin<Project> {
 
     @Override
     void apply(Project project) {
 
-        def packageName = project.rootProject.name
+        project.extensions.create("ballerina", BallerinaExtension)
+
         def packageOrg = "ballerina"
         def platform = "java11"
         def tomlVersion
@@ -22,7 +29,6 @@ class StdLibBalPlugin implements Plugin<Project> {
         def projectDirectory = new File("$project.projectDir")
         def ballerinaCentralAccessToken = System.getenv('BALLERINA_CENTRAL_ACCESS_TOKEN')
         def originalConfig = ballerinaConfigFile.text
-        def distributionBinPath = project.projectDir.absolutePath + "/build/target/extracted-distributions/jballerina-tools-zip/jballerina-tools-${project.ballerinaLangVersion}/bin"
         def groupParams = ""
         def disableGroups = ""
         def debugParams = ""
@@ -45,16 +51,6 @@ class StdLibBalPlugin implements Plugin<Project> {
             tomlVersion = project.version.replace("${project.ext.snapshotVersion}", "")
         }
 
-        project.configurations{
-            jbalTools
-        }
-
-        project.dependencies {
-            jbalTools ("org.ballerinalang:jballerina-tools:${project.ballerinaLangVersion}") {
-                transitive = false
-            }
-        }
-
         project.tasks.register("unpackJballerinaTools"){
             project.copy{
                 project.configurations.jbalTools.resolvedConfiguration.resolvedArtifacts.each { artifact ->
@@ -64,7 +60,7 @@ class StdLibBalPlugin implements Plugin<Project> {
             }
         }
 
-        project.task("updateTomlVersions"){
+        project.tasks.register("updateTomlVersions"){
             dependsOn(project.unpackJballerinaTools)
             doLast {
                 def newConfig = ballerinaConfigFile.text.replace("@project.version@", project.version)
@@ -80,6 +76,9 @@ class StdLibBalPlugin implements Plugin<Project> {
         }
 
         project.tasks.register("initializeVariables"){
+
+            String packageName = project.extensions.ballerina.module
+
             if (project.hasProperty("groups")) {
                 groupParams = "--groups ${project.findProperty("groups")}"
             }
@@ -119,14 +118,16 @@ class StdLibBalPlugin implements Plugin<Project> {
             }
         }
 
-        project.tasks.create("ballerinaBuild"){
+        project.tasks.register("build"){
+
             finalizedBy(project.revertTomlFile)
             dependsOn(project.initializeVariables)
             dependsOn(project.updateTomlVersions)
-            dependsOn(":${packageName}-native:build")
 
             inputs.dir projectDirectory
             doLast {
+                String distributionBinPath = project.projectDir.absolutePath + "/build/target/extracted-distributions/jballerina-tools-zip/jballerina-tools-${project.extensions.ballerina.langVersion}/bin"
+                String packageName = project.extensions.ballerina.module
                 if (needSeparateTest) {
                     project.exec {
                         workingDir project.projectDir
@@ -213,10 +214,26 @@ class StdLibBalPlugin implements Plugin<Project> {
             outputs.dir artifactLibParent
         }
 
-        project.tasks.create("createArtifactZip", Zip.class){
+        project.tasks.register("createArtifactZip", Zip.class){
             destinationDirectory = new File("$project.buildDir/distributions")
-            from project.ballerinaBuild
+            from project.build
         }
+
+        project.tasks.register("test"){
+            dependsOn(project.build)
+        }
+
+        project.tasks.register("clean", Delete.class){
+            delete "$project.projectDir/target"
+            delete "$project.projectDir/build"
+        }
+
+//        project.tasks.named("jar"){
+//            manifest {
+//                attributes('Implementation-Title': project.name,
+//                        'Implementation-Version': project.version)
+//            }
+//        }
 
     }
 }
