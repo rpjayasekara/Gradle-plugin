@@ -19,6 +19,22 @@ class StdLibBalPlugin implements Plugin<Project> {
 
         project.extensions.create("ballerina", BallerinaExtension)
 
+        project.configurations {
+            jbalTools
+        }
+
+        project.dependencies {
+            if(project.extensions.ballerina.langVersion==null){
+                jbalTools ("org.ballerinalang:jballerina-tools:${project.ballerinaLangVersion}") {
+                    transitive = false
+                }
+            }else{
+                jbalTools ("org.ballerinalang:jballerina-tools:${project.extensions.ballerina.langVersion}") {
+                    transitive = false
+                }
+            }
+        }
+
         def packageOrg = "ballerina"
         def platform = "java11"
         def tomlVersion
@@ -227,13 +243,6 @@ class StdLibBalPlugin implements Plugin<Project> {
             delete "$project.projectDir/target"
             delete "$project.projectDir/build"
         }
-
-//        project.tasks.named("jar"){
-//            manifest {
-//                attributes('Implementation-Title': project.name,
-//                        'Implementation-Version': project.version)
-//            }
-//        }
 
     }
 }
