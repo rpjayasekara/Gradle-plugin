@@ -31,6 +31,8 @@ jobs:
           path: "~/.gradle/caches"
           key: "gradle-caches-${{ runner.os }}-${{ hashFiles('**/gradle/dependency-locks/*.lockfile') }}"
       - name: "Publish package github packages"
-        run: "./gradlew publish"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          packageUser: ${{ secrets.USERNAME }}
+          packagePAT: ${{ secrets.TOKEN }}
+        run: "./gradlew publish"
+
