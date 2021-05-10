@@ -4,6 +4,7 @@ import org.apache.tools.ant.taskdefs.condition.Os
 import org.gradle.api.InvalidUserDataException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.bundling.Zip
 
@@ -67,17 +68,58 @@ class StdLibBalPlugin implements Plugin<Project> {
             tomlVersion = project.version.replace("${project.ext.snapshotVersion}", "")
         }
 
-        project.tasks.register("unpackJballerinaTools"){
-            project.copy{
-                project.configurations.jbalTools.resolvedConfiguration.resolvedArtifacts.each { artifact ->
-                    from project.zipTree(artifact.getFile())
-                    into new File("${project.buildDir}/target/extracted-distributions", "jballerina-tools-zip")
+        project.tasks.register("copyToLib", Copy.class){
+            into "$project.projectDir/lib"
+            from project.configurations.externalJars
+        }
+
+        project.tasks.register("unpackJballerinaTools", Copy.class){
+            println("from unpackjabl")
+            String module = project.extensions.ballerina.module
+            project.configurations.each {configuration ->
+                if(configuration.toString().equals("configuration ':"+module+"-ballerina:externalJars'")){
+                    dependsOn(project.copyToLib)
                 }
+            }
+            project.configurations.jbalTools.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+                from project.zipTree(artifact.getFile())
+                into new File("${project.buildDir}/target/extracted-distributions", "jballerina-tools-zip")
+            }
+        }
+
+        project.tasks.register("unpackStdLibs"){
+            dependsOn(project.unpackJballerinaTools)
+            doLast {
+                project.configurations.ballerinaStdLibs.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+                    project.copy {
+                        from project.zipTree(artifact.getFile())
+                        into new File("${project.buildDir}/target/extracted-distributions", artifact.name + "-zip")
+                    }
+                }
+            }
+        }
+
+        project.tasks.register("copyStdlibs", Copy.class){
+            dependsOn(project.unpackStdLibs)
+            def ballerinaDist = "build/target/extracted-distributions/jballerina-tools-zip/jballerina-tools-${project.ballerinaLangVersion}"
+            into ballerinaDist
+
+            /* Standard Libraries */
+            project.configurations.ballerinaStdLibs.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+                def artifactExtractedPath = "${project.buildDir}/target/extracted-distributions/" + artifact.name + "-zip"
+                into("repo/bala") {
+                    from "${artifactExtractedPath}/bala"
+                }
+                into("repo/cache") {
+                    from "${artifactExtractedPath}/cache"
+                }
+
             }
         }
 
         project.tasks.register("updateTomlVersions"){
             dependsOn(project.unpackJballerinaTools)
+            println("from updateToml")
             doLast {
                 def newConfig = ballerinaConfigFile.text.replace("@project.version@", project.version)
                 newConfig = newConfig.replace("@toml.version@", tomlVersion)
@@ -137,9 +179,10 @@ class StdLibBalPlugin implements Plugin<Project> {
         project.tasks.register("build"){
 
             finalizedBy(project.revertTomlFile)
-            dependsOn(project.initializeVariables)
             dependsOn(project.updateTomlVersions)
+            dependsOn(project.initializeVariables)
 
+            println("from build")
             inputs.dir projectDirectory
             doLast {
                 String distributionBinPath = project.projectDir.absolutePath + "/build/target/extracted-distributions/jballerina-tools-zip/jballerina-tools-${project.extensions.ballerina.langVersion}/bin"
